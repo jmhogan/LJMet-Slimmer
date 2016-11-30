@@ -33,7 +33,8 @@ public :
    Bool_t          isTT;
    Bool_t          isTTV;
    Bool_t          isST;
-   Bool_t          isTTincMtt0to1000;
+   Bool_t          isTTincMtt0to700;
+   Bool_t          isTTincMtt700to1000;
    Bool_t          isTTincMtt1000toInf;
    Bool_t          outBWBW;
    Bool_t          outTZBW;
@@ -57,8 +58,10 @@ public :
    Int_t           isMuon;
    Int_t           MCPastTrigger;
    Int_t           MCPastTriggerAlt;
+   Int_t           MCPastTriggerAlt2;
    Int_t           DataPastTrigger;
    Int_t           DataPastTriggerAlt;
+   Int_t           DataPastTriggerAlt2;
    Float_t         pileupWeight;
    Float_t         pileupWeightUp;
    Float_t         pileupWeightDown;
@@ -93,6 +96,7 @@ public :
    Int_t           elTrigPresel_singleLepCalc;
 
    Int_t           NJets_JetSubCalc;
+   Int_t           NJetsCSV_JetSubCalc;
    Int_t           NJetsCSVwithSF_JetSubCalc;
    vector<int>     NJetsCSVwithSF_JetSubCalc_shifts;
    vector<double>  theJetPt_JetSubCalc_PtOrdered;
@@ -883,7 +887,8 @@ step1::step1(TString inputFileName, TString outputFileName) : inputTree(0), inpu
 // if parameter tree is not specified (or zero), connect the file
 // used to generate this class and read the Tree.
 
-  isSig  = inputFileName.Contains("prime");
+  //isSig  = inputFileName.Contains("prime");
+  isSig  = inputFileName.Contains("X53X53_M-") || inputFileName.Contains("ChargedHiggs_HplusTB_HplusToTB_M-");
   if(isSig){
     if(inputFileName.Contains("_M-700")) SigMass = 0;
     else if(inputFileName.Contains("_M-800")) SigMass = 1;
@@ -905,7 +910,8 @@ step1::step1(TString inputFileName, TString outputFileName) : inputTree(0), inpu
   isST = inputFileName.Contains("ST");
   isTTV = (inputFileName.Contains("TTZ_") || inputFileName.Contains("TTW_"));
   isMC      = !inputFileName.Contains("Single");
-  isTTincMtt0to1000    = outputFileName.Contains("Mtt0to1000");
+  isTTincMtt0to700    = outputFileName.Contains("Mtt0to700");
+  isTTincMtt700to1000 = outputFileName.Contains("Mtt700to1000");
   isTTincMtt1000toInf = outputFileName.Contains("Mtt1000toInf");
   outBWBW = outputFileName.Contains("BWBW");
   outTZBW = outputFileName.Contains("TZBW");
@@ -1530,7 +1536,7 @@ void step1::Init(TTree *tree)
    inputTree->SetBranchAddress("theJetAK8CSV_JetSubCalc", &theJetAK8CSV_JetSubCalc, &b_theJetAK8CSV_JetSubCalc);
    inputTree->SetBranchAddress("theJetAK8Energy_JetSubCalc", &theJetAK8Energy_JetSubCalc, &b_theJetAK8Energy_JetSubCalc);
    inputTree->SetBranchAddress("theJetAK8Eta_JetSubCalc", &theJetAK8Eta_JetSubCalc, &b_theJetAK8Eta_JetSubCalc);
-   inputTree->SetBranchAddress("theJetAK8FilteredMass_JetSubCalc", &theJetAK8FilteredMass_JetSubCalc, &b_theJetAK8FilteredMass_JetSubCalc);
+   //inputTree->SetBranchAddress("theJetAK8FilteredMass_JetSubCalc", &theJetAK8FilteredMass_JetSubCalc, &b_theJetAK8FilteredMass_JetSubCalc);
    inputTree->SetBranchAddress("theJetAK8JetCharge_JetSubCalc", &theJetAK8JetCharge_JetSubCalc, &b_theJetAK8JetCharge_JetSubCalc);
    inputTree->SetBranchAddress("theJetAK8Mass_JetSubCalc", &theJetAK8Mass_JetSubCalc, &b_theJetAK8Mass_JetSubCalc);
    inputTree->SetBranchAddress("theJetAK8NEmEFrac_JetSubCalc", &theJetAK8NEmEFrac_JetSubCalc, &b_theJetAK8NEmEFrac_JetSubCalc);
@@ -1552,7 +1558,7 @@ void step1::Init(TTree *tree)
    inputTree->SetBranchAddress("theJetAK8SDSubjetPhi_JetSubCalc", &theJetAK8SDSubjetPhi_JetSubCalc, &b_theJetAK8SDSubjetPhi_JetSubCalc);
    inputTree->SetBranchAddress("theJetAK8SDSubjetPt_JetSubCalc", &theJetAK8SDSubjetPt_JetSubCalc, &b_theJetAK8SDSubjetPt_JetSubCalc);
    inputTree->SetBranchAddress("theJetAK8SoftDropMass_JetSubCalc", &theJetAK8SoftDropMass_JetSubCalc, &b_theJetAK8SoftDropMass_JetSubCalc);
-   inputTree->SetBranchAddress("theJetAK8TrimmedMass_JetSubCalc", &theJetAK8TrimmedMass_JetSubCalc, &b_theJetAK8TrimmedMass_JetSubCalc);
+   //inputTree->SetBranchAddress("theJetAK8TrimmedMass_JetSubCalc", &theJetAK8TrimmedMass_JetSubCalc, &b_theJetAK8TrimmedMass_JetSubCalc);
    inputTree->SetBranchAddress("theJetCEmEFrac_JetSubCalc", &theJetCEmEFrac_JetSubCalc, &b_theJetCEmEFrac_JetSubCalc);
    inputTree->SetBranchAddress("theJetCEmEnergy_JetSubCalc", &theJetCEmEnergy_JetSubCalc, &b_theJetCEmEnergy_JetSubCalc);
    inputTree->SetBranchAddress("theJetCHadEFrac_JetSubCalc", &theJetCHadEFrac_JetSubCalc, &b_theJetCHadEFrac_JetSubCalc);

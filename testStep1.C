@@ -2,7 +2,7 @@
 
 void testStep1(){
   
-  TString inputFile="root://cmseos.fnal.gov//store/user/lpcljm/2016/LJMet_1lepTT_070516/nominal/SingleMuon_PRB2/SingleMuon_PRB2_60.root";
+  TString inputFile="/mnt/hadoop/users/ssagir/LJMet_1lepTT_080116/nominal/X53X53_M-700_LH_TuneCUETP8M1_13TeV-madgraph-pythia8/X53X53_M-700_LH_TuneCUETP8M1_13TeV-madgraph-pythia8_1.root";
   
   TString outputFile="test.root";
   

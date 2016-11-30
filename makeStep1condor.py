@@ -1,15 +1,29 @@
-import os,sys,datetime,time
+import os,sys,shutil,datetime,time
+import getpass
 from ROOT import *
 
 start_time = time.time()
 
-#IO directories must be full paths
 shift = sys.argv[1]
 
-inputDir='/user_data/ssagir/LJMet_1lep_111716_step1/'+shift
-outputDir='/user_data/ssagir/LJMet_1lep_111716_step1hadds/'+shift
+#IO directories must be full paths
+relbase   = '/home/ssagir/CMSSW_7_4_7/'
+inputDir  = '/mnt/hadoop/users/ssagir/LJMet_1lepTT_080116/'+shift+'/'
+outputDir = '/user_data/ssagir/LJMet_1lep_111716_step1/'+shift+'/'
 
-os.system('mkdir -p '+outputDir)
+runDir=os.getcwd()
+# Can change the file directory if needed
+#if '' not in shift: runDirPost = ''
+#else: runDirPost = shift+'Files'
+runDirPost = ''
+print 'Files from',runDirPost
+
+gROOT.ProcessLine('.x compileStep1.C')
+
+cTime=datetime.datetime.now()
+date='%i_%i_%i_%i_%i_%i'%(cTime.year,cTime.month,cTime.day,cTime.hour,cTime.minute,cTime.second)
+
+condorDir=outputDir+'/condorLogs/'
 
 dirList = [
 	'X53X53_M-1000_LH_TuneCUETP8M1_13TeV-madgraph-pythia8',
@@ -46,9 +60,6 @@ dirList = [
     'WJetsToLNu_TuneCUETP8M1_13TeV-madgraphMLM-pythia8',
     'TT_Mtt-1000toInf_TuneCUETP8M1_13TeV-powheg-pythia8',
     'TT_Mtt-700to1000_TuneCUETP8M1_13TeV-powheg-pythia8',
-    'TT_TuneCUETP8M1_13TeV-powheg-pythia8_Mtt0to700',
-    'TT_TuneCUETP8M1_13TeV-powheg-pythia8_Mtt1000toInf',
-    'TT_TuneCUETP8M1_13TeV-powheg-pythia8_Mtt700to1000',
     'WW_TuneCUETP8M1_13TeV-pythia8',						      
     'WZ_TuneCUETP8M1_13TeV-pythia8',						      
     'ZZ_TuneCUETP8M1_13TeV-pythia8',						      
@@ -100,30 +111,85 @@ if shift == 'nominal':
     dirList.append('SingleMuon_PRH')
     dirList.append('SingleElectron_RRBCDEFG')
     dirList.append('SingleMuon_RRBCDEFG')
-          
-for sample in dirList:
-    rootfiles = [x for x in os.listdir(inputDir+'/'+sample) if '.root' in x]
-    print '##########'*15
-    print 'HADDING:', sample,len(rootfiles)
-    print '##########'*15
-    nFilesPerHadd = 999
 
-    if len(rootfiles) < nFilesPerHadd:
-        haddcommand = 'hadd -f '+outputDir+'/'+sample+'_hadd.root '
-        for file in rootfiles:
-            haddcommand+=' '+inputDir+'/'+sample+'/'+file
-        os.system(haddcommand)
-    else:
-        for i in range(int(len(rootfiles)/nFilesPerHadd)):
-            haddcommand = 'hadd -f '+outputDir+'/'+sample+'_'+str(i+1)+'_hadd.root '
-            begin=i*nFilesPerHadd
-            end=begin+nFilesPerHadd
-            if len(rootfiles) - end < nFilesPerHadd: end=len(rootfiles)
-            for j in range(begin,end):
-                haddcommand+=' '+inputDir+'/'+sample+'/'+rootfiles[j]
-            os.system(haddcommand)
+#calculate # of jobs to be submitted:
+totJobs = 0
+for sample in dirList:
+    for file in os.popen('ls '+inputDir+sample): totJobs+=1
+for file in os.popen('ls '+inputDir+'TT_TuneCUETP8M1_13TeV-powheg-pythia8'): totJobs+=1
+
+print 'Starting submission'
+count=0
+for sample in dirList:
+    os.system('mkdir -p '+outputDir+sample)
+    os.system('mkdir -p '+condorDir+sample)
+    relPath = sample
+
+    rootfiles = [x for x in os.listdir(inputDir+sample) if '.root' in x]
+    for file in rootfiles:
+        rawfile = file[:-5]
+        count+=1
+        dict={'RUNDIR':runDir, 'POST':runDirPost, 'RELPATH':relPath, 'CONDORDIR':condorDir, 'INPUTDIR':inputDir, 'FILENAME':rawfile, 'CMSSWBASE':relbase, 'OUTPUTDIR':outputDir}
+        jdfName=condorDir+'/%(RELPATH)s/%(FILENAME)s.job'%dict
+        print jdfName
+        jdf=open(jdfName,'w')
+        jdf.write(
+"""universe = vanilla
+Executable = %(RUNDIR)s/makeStep1.sh
+Should_Transfer_Files = YES
+WhenToTransferOutput = ON_EXIT
+request_memory = 3072
+Transfer_Input_Files = %(RUNDIR)s/makeStep1.C, %(RUNDIR)s/%(POST)s/step1.cc, %(RUNDIR)s/%(POST)s/step1.h, %(RUNDIR)s/%(POST)s/scaleFactors.h, %(RUNDIR)s/%(POST)s/step1_cc.d, %(RUNDIR)s/%(POST)s/step1_cc.so
+Output = %(FILENAME)s.out
+Error = %(FILENAME)s.err
+Log = %(FILENAME)s.log
+Notification = Never
+Arguments = %(FILENAME)s.root %(FILENAME)s.root %(INPUTDIR)s/%(RELPATH)s %(OUTPUTDIR)s/%(RELPATH)s
+
+Queue 1"""%dict)
+        jdf.close()
+        os.chdir('%s/%s'%(condorDir,relPath))
+        os.system('condor_submit %(FILENAME)s.job'%dict)
+        os.system('sleep 0.5')                                
+        os.chdir('%s'%(runDir))
+        print count, '/', totJobs, "jobs submitted!!!"
+
+sample = 'TT_TuneCUETP8M1_13TeV-powheg-pythia8'
+TTOutList = ['Mtt0to700','Mtt700to1000','Mtt1000toInf']
+
+rootfiles = [x for x in os.listdir(inputDir+sample) if '.root' in x]
+relPath = sample        
+for outlabel in TTOutList:
+    os.system('mkdir -p '+outputDir+sample+'_'+outlabel)
+    os.system('mkdir -p '+condorDir+sample+'_'+outlabel)
+
+    for file in rootfiles:
+        rawname = file[:-5]
+        count+=1
+        dict={'RUNDIR':runDir, 'POST':runDirPost, 'RELPATH':relPath, 'LABEL':outlabel, 'CONDORDIR':condorDir, 'INPUTDIR':inputDir, 'FILENAME':rawname, 'CMSSWBASE':relbase, 'OUTPUTDIR':outputDir}
+        jdfName=condorDir+'/%(RELPATH)s_%(LABEL)s/%(FILENAME)s_%(LABEL)s.job'%dict
+        print jdfName
+        jdf=open(jdfName,'w')
+        jdf.write(
+"""universe = vanilla
+Executable = %(RUNDIR)s/makeStep1.sh
+Should_Transfer_Files = YES
+WhenToTransferOutput = ON_EXIT
+request_memory = 3072
+Transfer_Input_Files = %(RUNDIR)s/makeStep1.C, %(RUNDIR)s/%(POST)s/step1.cc, %(RUNDIR)s/%(POST)s/step1.h, %(RUNDIR)s/%(POST)s/scaleFactors.h, %(RUNDIR)s/%(POST)s/step1_cc.d, %(RUNDIR)s/%(POST)s/step1_cc.so
+Output = %(FILENAME)s_%(LABEL)s.out
+Error = %(FILENAME)s_%(LABEL)s.err
+Log = %(FILENAME)s_%(LABEL)s.log
+Notification = Never
+Arguments = %(FILENAME)s.root %(FILENAME)s_%(LABEL)s.root %(INPUTDIR)s/%(RELPATH)s %(OUTPUTDIR)s/%(RELPATH)s_%(LABEL)s
+
+Queue 1"""%dict)
+        jdf.close()
+        os.chdir('%s/%s_%s'%(condorDir,relPath,outlabel))
+        os.system('condor_submit %(FILENAME)s_%(LABEL)s.job'%dict)
+        os.system('sleep 0.5')                                
+        os.chdir('%s'%(runDir))
+        print count, '/', totJobs, "jobs submitted!!!"
 
 print("--- %s minutes ---" % (round(time.time() - start_time, 2)/60))
-
-
 
